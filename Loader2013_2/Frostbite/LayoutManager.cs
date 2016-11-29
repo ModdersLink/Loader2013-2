@@ -7,6 +7,7 @@ using RimeLib.IO;
 using RimeLib.IO.Conversion;
 using System.IO;
 using RimeLib.Frostbite.Db;
+using RimeLib.Frostbite.Bundles;
 
 namespace Loader2013_2.Frostbite
 {
@@ -69,7 +70,36 @@ namespace Loader2013_2.Frostbite
         /// </summary>
         protected override void DiscoverFileSystems()
         {
-            throw new NotImplementedException();
+            var s_BaseLayout = Layout[0].Value as DbObject;
+
+            if (s_BaseLayout == null)
+                throw new Exception("No Superbundles found in Layout. This probably means data is corrupted or the engine you're trying to load is unsupported.");
+
+            var s_FileSystems = s_BaseLayout["fs"].Value as DbObject;
+
+            // As seen on some fb game I can't remember, fs isn't always required...
+            if (s_FileSystems == null)
+                return;
+
+            for (var i = 0; i < s_FileSystems.Count; ++i)
+            {
+                var s_FileSystemEntry = s_FileSystems[i].Value as string;
+
+                if (string.IsNullOrWhiteSpace(s_FileSystemEntry))
+                    continue;
+
+                var s_Entry = new FileSystemEntry(s_FileSystemEntry);
+
+                // Figure out in which package this entry is in (if any).
+                if (!FileSystem.FileExists(s_Entry.BasePath))
+                    throw new Exception("FileSystem '" + s_FileSystemEntry + "' could not be located. Please make sure your game data is not corrupt.");
+
+                // Check whether this entry also exists in the authoritative package.
+                if (AuthoritativePackage != null && FileSystem.FileExists("/game" + AuthoritativePackage.Path + "/Data/" + s_FileSystemEntry))
+                    s_Entry.AuthoritativePackage = AuthoritativePackage;
+
+                FileSystems.Add(s_Entry);
+            }
         }
 
         /// <summary>
@@ -137,7 +167,55 @@ namespace Loader2013_2.Frostbite
         /// </summary>
         protected override void DiscoverSuperbundles()
         {
-            throw new NotImplementedException();
+            var s_BaseLayout = Layout[0].Value as DbObject;
+
+            if (s_BaseLayout == null)
+                return;
+                //throw new Exception("No Superbundles found in Layout. This probably means data is corrupted or the engine you're trying to load is unsupported.");
+
+            var s_Superbundles = s_BaseLayout["superBundles"].Value as DbObject;
+
+            if (s_Superbundles == null)
+                return;
+                //throw new Exception("No Superbundles found in Layout. This probably means data is corrupted or the engine you're trying to load is unsupported.");
+
+            for (var i = 0; i < s_Superbundles.Count; ++i)
+            {
+                var s_SuperBundleEntry = s_Superbundles[i].Value as DbObject;
+
+                var s_Name = s_SuperBundleEntry?["name"];
+
+                if (s_Name == null)
+                    continue;
+
+                var s_SbPath = (string)s_Name.Value;
+
+                var s_Entry = new SuperbundleEntry(s_SbPath);
+
+                // Figure out in which package this entry is in (if any).
+                if (!FileSystem.FileExists("/game/Data/" + s_Entry.Name + ".sb") || !FileSystem.FileExists("/game/Data/" + s_Entry.Name + ".toc"))
+                {
+                    foreach (var s_Package in Packages)
+                    {
+                        if (!FileSystem.FileExists("/game" + s_Package.Path + "/Data/" + s_Entry.Name + ".sb") || !FileSystem.FileExists("/game" + s_Package.Path + "/Data/" + s_Entry.Name + ".toc"))
+                            continue;
+
+                        s_Entry.ContainedPackage = s_Package;
+                        break;
+                    }
+
+                    // Base superbundle doesn't exist at all.
+                    if (s_Entry.ContainedPackage == null)
+                        continue;
+                }
+
+                // Check whether this entry also exists in the authoritative package.
+                if (AuthoritativePackage != null && FileSystem.FileExists("/game" + AuthoritativePackage.Path + "/Data/" + s_Entry.Name + ".sb") &&
+                    FileSystem.FileExists("/game" + AuthoritativePackage.Path + "/Data/" + s_Entry.Name + ".toc"))
+                    s_Entry.AuthoritativePackage = AuthoritativePackage;
+
+                Superbundles.Add(s_Entry);
+            }
         }
 
         /// <summary>
@@ -156,7 +234,11 @@ namespace Loader2013_2.Frostbite
             RimeReader s_LayoutReader;
 
             if (!FileSystem.OpenFileRead(s_LayoutPath, out s_LayoutReader, Endianness.LittleEndian))
+#if DEBUG
                 throw new Exception("Failed to read the Layout file. Please verify that it exists and is readable.");
+#else
+            return;
+#endif
 
             Layout = ParseReadLayout(s_LayoutReader);
 
