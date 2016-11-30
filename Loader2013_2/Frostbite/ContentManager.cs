@@ -1,9 +1,9 @@
 ﻿using RimeCommon.Mounting;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+using RimeCommon.VFS;
+using RimeCommon.VFS.Backends;
+using RimeLib.Frostbite.Storage;
+using RimeLib.IO;
+using RimeLib.IO.Conversion;
 
 namespace Loader2013_2.Frostbite
 {
@@ -25,8 +25,44 @@ namespace Loader2013_2.Frostbite
         /// </summary>
         public override void MountBaseContent()
         {
-            // TODO: Mount the cas/cat format
-            throw new NotImplementedException();
+            const string c_BaseCatalogPath = "/game/Data/cas.cat";
+
+            var s_FsBackend = new CasBackend();
+            FileSystem.Mount(s_FsBackend, "/cas");
+
+            RimeReader s_BaseCatalogReader;
+            if (FileSystem.OpenFileRead(c_BaseCatalogPath, out s_BaseCatalogReader, Endianness.LittleEndian))
+            {
+                BaseCatalog = new Catalog(s_BaseCatalogReader)
+                {
+                    Name = "cas",
+                    AuthoritativePackage = null
+                };
+
+                // Mount this catalog to the Cas Backend
+                s_FsBackend.Mount(BaseCatalog);
+
+                s_BaseCatalogReader.Dispose();
+            }
+
+            if (BasePlugin.LayoutManager.AuthoritativePackage != null)
+            {
+                var s_CatalogPath = "/game" + BasePlugin.LayoutManager.AuthoritativePackage.Path + "/Data/cas.cat";
+
+                RimeReader s_AuthoritativeCatalogReader;
+                if (FileSystem.OpenFileRead(s_CatalogPath, out s_AuthoritativeCatalogReader, Endianness.LittleEndian))
+                {
+                    AuthoritativeCatalog = new Catalog(s_AuthoritativeCatalogReader)
+                    {
+                        Name = "cas",
+                        AuthoritativePackage = BasePlugin.LayoutManager.AuthoritativePackage
+                    };
+
+                    s_FsBackend.Mount(AuthoritativeCatalog);
+
+                    s_AuthoritativeCatalogReader.Dispose();
+                }
+            }
         }
     }
 }

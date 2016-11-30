@@ -2,6 +2,8 @@
 using System;
 using System.Collections.Generic;
 using RimeLib.Frostbite.Bundles;
+using RimeCommon.VFS.Backends;
+using RimeCommon.VFS;
 
 namespace Loader2013_2.Frostbite
 {
@@ -16,6 +18,9 @@ namespace Loader2013_2.Frostbite
         /// <param name="p_Plugin">Loader2013_2Plugin</param>
         public BundleManager(Loader2013_2Plugin p_Plugin) : base(p_Plugin)
         {
+            // TODO: Create a collection of bundle's
+            // VFS
+            FileSystem.Mount(new BundleBackend(), "/bundles");
         }
 
         /// <summary>
@@ -24,7 +29,10 @@ namespace Loader2013_2.Frostbite
         /// <param name="p_Superbundle"></param>
         public override void DiscoverBundles(SuperbundleBase p_Superbundle)
         {
-            throw new NotImplementedException();
+            foreach (var l_Bundle in p_Superbundle.BundleEntries)
+            {
+                // TODO: Add each bundle entry to a collection
+            }
         }
 
         /// <summary>
@@ -34,6 +42,7 @@ namespace Loader2013_2.Frostbite
         /// <returns>True on success, false otherwise</returns>
         public override bool DismountBundle(string p_Name)
         {
+            // TODO: Remove the bundle from the collection
             throw new NotImplementedException();
         }
 
@@ -42,6 +51,7 @@ namespace Loader2013_2.Frostbite
         /// </summary>
         public override void DismountBundles()
         {
+            // TODO: Remove all bundles from the collection
             throw new NotImplementedException();
         }
 

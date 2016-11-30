@@ -27,6 +27,10 @@ namespace Loader2013_2
         public override MountPoint Mount => MountPoint.None;
         public override EngineType Engine => EngineType.Frostbite2013_2;
 
+        public const uint c_Obfuscated_0 = 0x00CED100;
+        public const uint c_Obfuscated_1 = 0x01CED100;
+        public const uint c_Signed = 0x03CED100;
+
         /// <summary>
         /// Initialization function
         /// </summary>

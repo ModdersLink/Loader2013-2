@@ -21,10 +21,6 @@ namespace Loader2013_2.Frostbite
         /// </summary>
         const string c_BaseLayoutPath = "/game/Data/layout.toc";
 
-        const uint c_Obfuscated_0 = 0x00CED100;
-        const uint c_Obfuscated_1 = 0x01CED100;
-        const uint c_Signed = 0x03CED100;
-
         /// <summary>
         /// Constructor that takes a parent plugin
         /// </summary>
@@ -278,10 +274,10 @@ namespace Loader2013_2.Frostbite
             var s_LayoutMagic = p_Reader.ReadUInt32();
 
             // Check if the file is obfuscated.
-            if (s_LayoutMagic == c_Obfuscated_0 ||
-                s_LayoutMagic == c_Obfuscated_1)
+            if (s_LayoutMagic == Loader2013_2Plugin.c_Obfuscated_0 ||
+                s_LayoutMagic == Loader2013_2Plugin.c_Obfuscated_1)
                 p_Reader.EnableDeobfuscation();
-            else if (s_LayoutMagic == c_Signed) // Signed
+            else if (s_LayoutMagic == Loader2013_2Plugin.c_Signed) // Signed
                 p_Reader.Seek(0x228, SeekOrigin.Current);
             else
                 throw new Exception("The Layout file appears to have an invalid header or is unsupported.");
