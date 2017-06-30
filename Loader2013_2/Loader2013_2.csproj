@@ -66,6 +66,7 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Frostbite\Bundles\Bundle.cs" />
     <Compile Include="Frostbite\Bundles\BundleManager.cs" />
     <Compile Include="Frostbite\Bundles\Superbundle.cs" />
     <Compile Include="Frostbite\Bundles\SuperbundleLayout.cs" />
@@ -74,6 +75,9 @@
     <Compile Include="Frostbite\Bundles\SuperbundleManager.cs" />
     <Compile Include="Loader2013_2Plugin.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
+  </ItemGroup>
+  <ItemGroup>
+    <Folder Include="Frostbite\Bundles\Entries\" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
