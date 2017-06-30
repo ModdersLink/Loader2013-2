@@ -22,6 +22,16 @@ namespace Loader2013_2.Frostbite
         const string c_BaseLayoutPath = "/game/Data/layout.toc";
 
         /// <summary>
+        /// The game data path, this may change depending on engine or game revision
+        /// </summary>
+        const string c_DataPath = "/game/Data";
+
+        /// <summary>
+        /// The update data path, this may change depending on engine or game revision
+        /// </summary>
+        const string c_UpdatePath = "/game/Update";
+
+        /// <summary>
         /// Constructor that takes a parent plugin
         /// </summary>
         /// <param name="p_Plugin">Loader2013_2Plugin</param>
@@ -44,7 +54,11 @@ namespace Loader2013_2.Frostbite
 
             // Try to find a Data directory
             if (!FileSystem.DirectoryExists("/game/Data"))
+#if DEBUG
                 throw new Exception("Failed to find the Data directory. Content mounting failed.");
+#else
+            return;
+#endif
 
             // Discover any packages that might exist.
             if (FileSystem.DirectoryExists("/game/Update"))
@@ -69,7 +83,11 @@ namespace Loader2013_2.Frostbite
             var s_BaseLayout = Layout[0].Value as DbObject;
 
             if (s_BaseLayout == null)
+#if DEBUG
                 throw new Exception("No Superbundles found in Layout. This probably means data is corrupted or the engine you're trying to load is unsupported.");
+#else
+            return;
+#endif
 
             var s_FileSystems = s_BaseLayout["fs"].Value as DbObject;
 
@@ -88,7 +106,11 @@ namespace Loader2013_2.Frostbite
 
                 // Figure out in which package this entry is in (if any).
                 if (!FileSystem.FileExists(s_Entry.BasePath))
+#if DEBUG
                     throw new Exception("FileSystem '" + s_FileSystemEntry + "' could not be located. Please make sure your game data is not corrupt.");
+#else
+                return;
+#endif
 
                 // Check whether this entry also exists in the authoritative package.
                 if (AuthoritativePackage != null && FileSystem.FileExists("/game" + AuthoritativePackage.Path + "/Data/" + s_FileSystemEntry))
@@ -148,7 +170,11 @@ namespace Loader2013_2.Frostbite
 
                 // We can NEVER (as of 2016) have multiple authoritative packages
                 if (l_Manifest.Authoritative && AuthoritativePackage != null)
+#if DEBUG
                     throw new Exception("A game cannot have multiple authoritative packages.");
+#else
+                return;
+#endif
 
                 // If the package we parsed is authoritative then set it
                 if (l_Manifest.Authoritative)
@@ -165,16 +191,26 @@ namespace Loader2013_2.Frostbite
         {
             var s_BaseLayout = Layout[0].Value as DbObject;
 
+            // Check to ensure that we actually have a base layout
             if (s_BaseLayout == null)
-                return;
-                //throw new Exception("No Superbundles found in Layout. This probably means data is corrupted or the engine you're trying to load is unsupported.");
+#if DEBUG
+                throw new Exception("No Superbundles found in Layout. This probably means data is corrupted or the engine you're trying to load is unsupported.");
+#else
+            return;
+#endif
 
+            // Get the superbundle list
             var s_Superbundles = s_BaseLayout["superBundles"].Value as DbObject;
 
+            // Ensure that we actually have the superbundles object before iterating
             if (s_Superbundles == null)
-                return;
-                //throw new Exception("No Superbundles found in Layout. This probably means data is corrupted or the engine you're trying to load is unsupported.");
+#if DEBUG
+                throw new Exception("No Superbundles found in Layout. This probably means data is corrupted or the engine you're trying to load is unsupported.");
+#else
+            return;
+#endif
 
+            // Iterate through each of the superbundles in the list
             for (var i = 0; i < s_Superbundles.Count; ++i)
             {
                 var s_SuperBundleEntry = s_Superbundles[i].Value as DbObject;
@@ -184,8 +220,10 @@ namespace Loader2013_2.Frostbite
                 if (s_Name == null)
                     continue;
 
+                // Get the path of the superbundle
                 var s_SbPath = (string)s_Name.Value;
 
+                // Create a new superbundle entry to keep track of the superbundle
                 var s_Entry = new SuperbundleEntry(s_SbPath);
 
                 // Figure out in which package this entry is in (if any).
@@ -220,15 +258,14 @@ namespace Loader2013_2.Frostbite
         protected override void ParseLayout()
         {
             // Here is where things can change (fifa...)
-
             var s_LayoutPath = c_BaseLayoutPath;
 
             // If we have an Authoritative Package then use that instead
             if (AuthoritativePackage != null)
                 s_LayoutPath = "/game" + AuthoritativePackage.Path + "/Data/layout.toc";
 
+            // Attempt to open the layout toc
             RimeReader s_LayoutReader;
-
             if (!FileSystem.OpenFileRead(s_LayoutPath, out s_LayoutReader, Endianness.LittleEndian))
 #if DEBUG
                 throw new Exception("Failed to read the Layout file. Please verify that it exists and is readable.");
@@ -236,20 +273,26 @@ namespace Loader2013_2.Frostbite
             return;
 #endif
 
+            // Parse the layout.toc
             Layout = ParseReadLayout(s_LayoutReader);
 
-            s_LayoutReader.Dispose();
+            // Close the opened reader
+            s_LayoutReader.Close();
             s_LayoutReader = null;
 
-            // If we didn't parse a auth package, return happily
+            // If we didn't parse a authoritative package, return happily
             if (s_LayoutPath == c_BaseLayoutPath)
                 return;
 
             // Make sure the base layout path exists and is valid.
-
             if (!FileSystem.OpenFileRead(c_BaseLayoutPath, out s_LayoutReader, Endianness.LittleEndian))
+#if DEBUG
                 throw new Exception("Failed to read the base Layout file. Please verify that it exists and is readable.");
+#else
+            return;
+#endif
 
+            // Read the base layout
             var s_BaseLayout = ParseReadLayout(s_LayoutReader);
 
             s_LayoutReader.Dispose();
@@ -269,6 +312,11 @@ namespace Loader2013_2.Frostbite
 
         }
 
+        /// <summary>
+        /// This function will read out a layout from an provided DbObject
+        /// </summary>
+        /// <param name="p_Reader">Reader opened to the position of the DbObject</param>
+        /// <returns>DbObject contianing the layout</returns>
         private DbObject ParseReadLayout(RimeReader p_Reader)
         {
             var s_LayoutMagic = p_Reader.ReadUInt32();
@@ -280,7 +328,11 @@ namespace Loader2013_2.Frostbite
             else if (s_LayoutMagic == Loader2013_2Plugin.c_Signed) // Signed
                 p_Reader.Seek(0x228, SeekOrigin.Current);
             else
+#if DEBUG
                 throw new Exception("The Layout file appears to have an invalid header or is unsupported.");
+#else
+            return null;
+#endif
 
             return new DbObject(p_Reader);
         }

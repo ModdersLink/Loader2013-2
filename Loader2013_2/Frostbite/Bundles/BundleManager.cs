@@ -5,7 +5,7 @@ using RimeLib.Frostbite.Bundles;
 using RimeCommon.VFS.Backends;
 using RimeCommon.VFS;
 
-namespace Loader2013_2.Frostbite
+namespace Loader2013_2.Frostbite.Bundles
 {
     /// <summary>
     /// Bundle manager for Frostbite 2013.2 engine bundles

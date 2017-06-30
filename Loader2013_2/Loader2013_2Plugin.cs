@@ -3,9 +3,13 @@ using RimeCommon.Messages.Mounting;
 using RimeCommon.Messaging;
 using RimeCommon.Mounting;
 using RimeCommon.Plugins;
+using RimeCommon.VFS;
 using RimeLib.Frostbite;
+using RimeLib.Frostbite.Bundles;
 using RimeLib.Frostbite.Containers;
+using System.Collections.Generic;
 using System.Windows.Forms;
+using Loader2013_2.Frostbite.Bundles;
 
 namespace Loader2013_2
 {
@@ -26,6 +30,7 @@ namespace Loader2013_2
         public override UserControl MainControl => null;
         public override MountPoint Mount => MountPoint.None;
         public override EngineType Engine => EngineType.Frostbite2013_2;
+        public override uint Priority => uint.MaxValue - 1;
 
         public const uint c_Obfuscated_0 = 0x00CED100;
         public const uint c_Obfuscated_1 = 0x01CED100;
@@ -37,20 +42,42 @@ namespace Loader2013_2
         /// <param name="p_Parameters">Ignored argument</param>
         public override void Init(params object[] p_Parameters)
         {
-            // Ensure that this plugin is called before UI plugins
-            m_MessageListener.IsSystem = true;
-
             // Subscribe to mounting events
-            m_MessageListener.RegisterListener(MessagingSubSystem.Mounting);
+            RegisterListener(MessagingSubSystem.Mounting);
 
             // Listen for mounting a game request
-            m_MessageListener.RegisterMessageCallback(typeof(MountBaseGameMessage), OnMountBaseGame);
+            RegisterMessageCallback(typeof(MountBaseGameMessage), OnMountBaseGame);
+
+            // Listen for a specific superbundle
+            RegisterMessageCallback(typeof(MountSuperbundleBundlesMessage), OnMountSuperbundleBundles);
 
             // Listen for mounting superbundle bundles request
-            m_MessageListener.RegisterMessageCallback(typeof(MountSuperbundleBundlesMessage), OnMountSuperbundleBundles);
+            RegisterMessageCallback(typeof(MountSuperbundlesBundlesMessage), OnMountSuperbundlesBundles);
 
             // Listen for mounting a superbundle request
-            m_MessageListener.RegisterMessageCallback(typeof(SuperbundleMountedMessage), OnSuperbundleMounted);
+            RegisterMessageCallback(typeof(SuperbundleMountedMessage), OnSuperbundleMounted);
+        }
+
+        /// <summary>
+        /// OnMountSuperbundleBundles is called when a specific superbundle
+        /// is requesting to mount it's bundles
+        /// </summary>
+        /// <param name="p_Message">MountSuperbundleBundlesMessage</param>
+        private void OnMountSuperbundleBundles(RimeMessage p_Message)
+        {
+            var s_Message = (MountSuperbundleBundlesMessage)p_Message;
+
+            List<FSLeaf> s_Leaves;
+            if (!FileSystem.ListPath("/sb", out s_Leaves))
+                return;
+
+            foreach (var l_Leaf in s_Leaves)
+            {
+                if (!l_Leaf.Path.ToLowerInvariant().Contains(s_Message.Superbundle.ToLowerInvariant()))
+                    continue;
+
+                BundleManager?.MountBundles(l_Leaf.AttachedObject as SuperbundleBase);
+            }
         }
 
         /// <summary>
@@ -58,11 +85,28 @@ namespace Loader2013_2
         /// and we are requesting for the bundles within that superbundle to be loaded
         /// </summary>
         /// <param name="p_RimeMessage">MountSuperbundleBundlesMessage</param>
-        private void OnMountSuperbundleBundles(RimeMessage p_RimeMessage)
+        private void OnMountSuperbundlesBundles(RimeMessage p_RimeMessage)
         {
-            var s_Message = (MountSuperbundleBundlesMessage)p_RimeMessage;
+            var s_Message = (MountSuperbundlesBundlesMessage)p_RimeMessage;
 
-            BundleManager?.MountBundles(s_Message.Superbundle);
+            var s_Superbundles = new List<string>(s_Message.Superbundles);
+
+            List<FSLeaf> s_Leaves;
+            if (!FileSystem.ListPath("/sb", out s_Leaves))
+                return;
+
+            var s_ToMount = new HashSet<SuperbundleBase>();
+
+            foreach (string l_Superbundle in s_Superbundles)
+            {
+                foreach (var l_Leaf in s_Leaves)
+                {
+                    if (!l_Leaf.Path.ToLowerInvariant().Contains(l_Superbundle.ToLowerInvariant()))
+                        continue;
+
+                    s_ToMount.Add(l_Leaf.AttachedObject as SuperbundleBase);
+                }
+            }
         }
 
         /// <summary>
@@ -95,7 +139,7 @@ namespace Loader2013_2
             // TODO: Mounting bindings per-game (should this be done in another plugin?)
 
             // Create our new managers to handle Frostbite 2013.2 content
-            Mount2014_3Branch(s_Message);
+            Mount2014_3Branch();
 
             // Figure out the layout of the game
             LayoutManager.DiscoverLayout();
@@ -111,7 +155,7 @@ namespace Loader2013_2
         /// This creates all of the managers that will be handling the 2013.2 engine specific data
         /// </summary>
         /// <param name="p_Message">Ignored</param>
-        private void Mount2014_3Branch(MountBaseGameMessage p_Message)
+        private void Mount2014_3Branch()
         {
             LayoutManager = new LayoutManager(this);
             ContentManager = new ContentManager(this);
